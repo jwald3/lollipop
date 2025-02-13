@@ -31,4 +31,8 @@ func main() {
 	if err := stateMachine.Transition(TripStatusCancelled); err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
+
+	stateMachine.Reset()
+
+	fmt.Printf("State after reset: %s\n", stateMachine.State)
 }

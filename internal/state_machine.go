@@ -5,14 +5,16 @@ import "fmt"
 type State any
 
 type StateMachine struct {
-	State       State
-	Transitions map[State][]State
+	State        State
+	Transitions  map[State][]State
+	InitialState State
 }
 
 func NewStateMachine(initialState State) *StateMachine {
 	return &StateMachine{
-		State:       initialState,
-		Transitions: make(map[State][]State),
+		State:        initialState,
+		Transitions:  make(map[State][]State),
+		InitialState: initialState,
 	}
 }
 
@@ -50,4 +52,8 @@ func (sm *StateMachine) Transition(to State) error {
 
 	sm.State = to
 	return nil
+}
+
+func (sm *StateMachine) Reset() {
+	sm.State = sm.InitialState
 }
