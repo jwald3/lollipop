@@ -1,3 +1,3 @@
-module github.com/jwald3/lollipop
+module lollipop
 
 go 1.23.1
