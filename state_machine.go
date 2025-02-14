@@ -12,7 +12,8 @@ var (
 	ErrExitActionFailed  = errors.New("exit action failed")
 )
 
-// State represents any value that can be used as a state
+// State represents any value that can be used as a state - you are expected to enforce a valid
+// set of valid state options in your implementation
 type State any
 
 // Action is a function that is executed when entering or exiting a state
@@ -20,20 +21,20 @@ type Action func() error
 
 // StateMachine manages state transitions and their associated actions
 type StateMachine struct {
-	State        State
-	Transitions  map[State][]State
-	InitialState State
-	EntryActions map[State]Action
-	ExitActions  map[State]Action
+	State        State             // a reference to the current state at a given time
+	Transitions  map[State][]State // each state and the valid, allowed transitions
+	InitialState State             // the state used in `Reset()` calls
+	EntryActions map[State]Action  // the functions called when entering a state
+	ExitActions  map[State]Action  // the functions called when exiting a state
 }
 
 func NewStateMachine(initialState State) *StateMachine {
 	return &StateMachine{
 		State:        initialState,
-		Transitions:  make(map[State][]State),
+		Transitions:  make(map[State][]State), // These properties use methods to set their values explicitly.
 		InitialState: initialState,
-		EntryActions: make(map[State]Action),
-		ExitActions:  make(map[State]Action),
+		EntryActions: make(map[State]Action), // ---
+		ExitActions:  make(map[State]Action), // ---
 	}
 }
 
@@ -64,6 +65,9 @@ func (sm *StateMachine) CanTransition(to State) bool {
 	return false
 }
 
+// go from one state to another, performing exit and entry actions where applicable.
+// the transition only sets the state machine's current status, so any intention to
+// use a state machine to update an object's status requires the use of entry/exit actions
 func (sm *StateMachine) Transition(to State) error {
 	if !sm.CanTransition(to) {
 		return fmt.Errorf("%w: from %v to %v", ErrInvalidTransition, sm.State, to)
@@ -88,10 +92,16 @@ func (sm *StateMachine) Transition(to State) error {
 	return nil
 }
 
+// Set or replace the entry action for a given state. The entry action is a generic function that
+// you will define in your implementation. This is called during the transition following the state machine
+// transitioning from the present to the destination state
 func (sm *StateMachine) SetEntryAction(state State, action Action) {
 	sm.EntryActions[state] = action
 }
 
+// Set or replace the exit action for a given state. The exit action is a generic function that
+// you will define in your implementation. This is called during the transition prior to the state machine
+// transitioning from the present to the destination state
 func (sm *StateMachine) SetExitAction(state State, action Action) {
 	sm.ExitActions[state] = action
 }
