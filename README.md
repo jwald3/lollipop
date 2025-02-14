@@ -15,8 +15,28 @@ Lollipop is a lightweight, flexible state machine implementation in Go. It provi
 
 ## Installation
 
+```bash
+go get github.com/jwald3/lollipop
+```
+
+## Usage
+
 ```go
-go get github.com/yourusername/lollipop
+import "github.com/jwald3/lollipop/pkg/statemachine"
+
+func main() {
+    // Create a new state machine
+    sm := statemachine.NewStateMachine(InitialState)
+    
+    // Add transitions
+    sm.AddTransition(InitialState, NextState)
+    
+    // Add actions
+    sm.SetEntryAction(NextState, func() error {
+        // Do something when entering NextState
+        return nil
+    })
+}
 ```
 
 ## Quick Start

@@ -1,10 +1,24 @@
-package lollipop
+package statemachine
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
+// Common errors that may be returned by the state machine
+var (
+	ErrInvalidTransition = errors.New("invalid state transition")
+	ErrEntryActionFailed = errors.New("entry action failed")
+	ErrExitActionFailed  = errors.New("exit action failed")
+)
+
+// State represents any value that can be used as a state
 type State any
+
+// Action is a function that is executed when entering or exiting a state
 type Action func() error
 
+// StateMachine manages state transitions and their associated actions
 type StateMachine struct {
 	State        State
 	Transitions  map[State][]State
@@ -52,34 +66,25 @@ func (sm *StateMachine) CanTransition(to State) bool {
 
 func (sm *StateMachine) Transition(to State) error {
 	if !sm.CanTransition(to) {
-		return fmt.Errorf("invalid transition from %v to %v", sm.State, to)
+		return fmt.Errorf("%w: from %v to %v", ErrInvalidTransition, sm.State, to)
 	}
 
-	// if the transaction is valid, check if there is a valid exit action function
-	// if there is a exit action available, attempt to call it, returning an error if unsuccessful
-	// if there's not an exit action, just skip
 	if exitAction := sm.ExitActions[sm.State]; exitAction != nil {
 		if err := exitAction(); err != nil {
-			return fmt.Errorf("exit action failed: %w", err)
+			return fmt.Errorf("%w: %v", ErrExitActionFailed, err)
 		}
 	}
 
-	// retain the old state in case we need to rollback
 	oldState := sm.State
-
 	sm.State = to
 
-	// attempt to call the entry action if one is registered for the destination state.
-	// if there is one, run the action, rolling back if unable to successfully call it
 	if entryAction := sm.EntryActions[to]; entryAction != nil {
 		if err := entryAction(); err != nil {
 			sm.State = oldState
-			return fmt.Errorf("entry action failed: %w", err)
+			return fmt.Errorf("%w: %v", ErrEntryActionFailed, err)
 		}
 	}
 
-	// at this point, the app called the exit action, performed the transition,
-	// and called the entry action successfully.
 	return nil
 }
 

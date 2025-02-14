@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/jwald3/lollipop/internal/lollipop"
+	"github.com/jwald3/lollipop/pkg/statemachine"
 )
 
 type LightState string
@@ -14,7 +14,7 @@ const (
 )
 
 func main() {
-	sm := lollipop.NewStateMachine(Off)
+	sm := statemachine.NewStateMachine(Off)
 
 	// register valid state paths
 	sm.AddTransition(Off, On)
