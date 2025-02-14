@@ -5,34 +5,40 @@ import (
 	lollipop "lollipop/internal"
 )
 
-type TripStatus string
+type LightState string
 
 const (
-	TripStatusScheduled  TripStatus = "SCHEDULED"
-	TripStatusInProgress TripStatus = "IN_PROGRESS"
-	TripStatusCompleted  TripStatus = "COMPLETED"
-	TripStatusCancelled  TripStatus = "CANCELLED"
+	Off LightState = "OFF"
+	On  LightState = "ON"
 )
 
 func main() {
-	stateMachine := lollipop.NewStateMachine(TripStatusScheduled)
+	sm := lollipop.NewStateMachine(Off)
 
-	stateMachine.AddTransition(TripStatusScheduled, TripStatusInProgress)
-	stateMachine.AddTransition(TripStatusScheduled, TripStatusCancelled)
-	stateMachine.AddTransition(TripStatusInProgress, TripStatusCompleted)
+	sm.AddTransition(Off, On)
+	sm.AddTransition(On, Off)
 
-	fmt.Printf("Initial state: %v\n", stateMachine.State)
+	sm.SetEntryAction(On, func() error {
+		fmt.Println("Light bulb warming up...")
+		return nil
+	})
 
-	if err := stateMachine.Transition(TripStatusInProgress); err != nil {
+	sm.SetEntryAction(Off, func() error {
+		fmt.Println("Light bulb cooling down...")
+		return nil
+	})
+
+	fmt.Printf("Current state: %v\n", sm.State)
+
+	fmt.Println("Turning light on...")
+	if err := sm.Transition(On); err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
-	fmt.Printf("State after transition: %s\n", stateMachine.State)
+	fmt.Printf("Current state: %v\n", sm.State)
 
-	if err := stateMachine.Transition(TripStatusCancelled); err != nil {
+	fmt.Println("Turning light off...")
+	if err := sm.Transition(Off); err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
-
-	stateMachine.Reset()
-
-	fmt.Printf("State after reset: %s\n", stateMachine.State)
+	fmt.Printf("Current state: %v\n", sm.State)
 }
