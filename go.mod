@@ -1,3 +1,7 @@
-module lollipop
+module github.com/jwald3/lollipop
 
-go 1.23.1
+go 1.21
+
+require (
+	// your dependencies here
+)

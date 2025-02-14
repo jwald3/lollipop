@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	lollipop "lollipop/internal"
+
+	"github.com/jwald3/lollipop/internal/lollipop"
 )
 
 type LightState string
