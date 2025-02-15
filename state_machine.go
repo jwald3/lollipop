@@ -19,36 +19,53 @@ type State any
 // Action is a function that is executed when entering or exiting a state
 type Action func() error
 
+// A guard is a function that returns a bool based on a restriction set on a transition
+// A transition should fail if the guard condition is not satisfied.
+type Guard func() bool
+
+// transitions include both the target state and a guard function to control the transition
+type Transition struct {
+	To    State
+	Guard Guard
+}
+
 // StateMachine manages state transitions and their associated actions
 type StateMachine struct {
-	State        State             // a reference to the current state at a given time
-	Transitions  map[State][]State // each state and the valid, allowed transitions
-	InitialState State             // the state used in `Reset()` calls
-	EntryActions map[State]Action  // the functions called when entering a state
-	ExitActions  map[State]Action  // the functions called when exiting a state
+	State        State                  // a reference to the current state at a given time
+	Transitions  map[State][]Transition // defines the valid transitions allowed from one state to another
+	InitialState State                  // the state used in `Reset()` calls
+	entryActions map[State]Action       // the functions called when entering a state
+	exitActions  map[State]Action       // the functions called when exiting a state
 }
 
 func NewStateMachine(initialState State) *StateMachine {
 	return &StateMachine{
 		State:        initialState,
-		Transitions:  make(map[State][]State), // These properties use methods to set their values explicitly.
+		Transitions:  make(map[State][]Transition), // These properties use methods to set their values explicitly.
 		InitialState: initialState,
-		EntryActions: make(map[State]Action), // ---
-		ExitActions:  make(map[State]Action), // ---
+		entryActions: make(map[State]Action), // ---
+		exitActions:  make(map[State]Action), // ---
 	}
 }
 
 // add transitions to the state machine's registry. if a state is not present in the map of
 // transitions, we will add it and its "to" state
-func (sm *StateMachine) AddTransition(from, to State) {
+func (sm *StateMachine) AddTransition(from, to State, guard Guard) {
 	if sm.Transitions[from] == nil {
-		sm.Transitions[from] = []State{}
+		sm.Transitions[from] = []Transition{}
 	}
-	sm.Transitions[from] = append(sm.Transitions[from], to)
+	sm.Transitions[from] = append(sm.Transitions[from], Transition{
+		To:    to,
+		Guard: guard,
+	})
+}
+
+func (sm *StateMachine) AddSimpleTransition(from, to State) {
+	sm.AddTransition(from, to, nil)
 }
 
 func (sm *StateMachine) CanTransition(to State) bool {
-	validStates, exists := sm.Transitions[sm.State]
+	transitions, exists := sm.Transitions[sm.State]
 	// if the current state isn't included in the transaction definitions, you cannot
 	// transition to any state.
 	if !exists {
@@ -56,8 +73,12 @@ func (sm *StateMachine) CanTransition(to State) bool {
 	}
 
 	// loop over the valid transition options until a match or the end of the list
-	for _, validState := range validStates {
-		if validState == to {
+	for _, transition := range transitions {
+		if transition.To == to {
+			if transition.Guard != nil {
+				return transition.Guard()
+			}
+
 			return true
 		}
 	}
@@ -73,7 +94,7 @@ func (sm *StateMachine) Transition(to State) error {
 		return fmt.Errorf("%w: from %v to %v", ErrInvalidTransition, sm.State, to)
 	}
 
-	if exitAction := sm.ExitActions[sm.State]; exitAction != nil {
+	if exitAction := sm.exitActions[sm.State]; exitAction != nil {
 		if err := exitAction(); err != nil {
 			return fmt.Errorf("%w: %v", ErrExitActionFailed, err)
 		}
@@ -82,7 +103,7 @@ func (sm *StateMachine) Transition(to State) error {
 	oldState := sm.State
 	sm.State = to
 
-	if entryAction := sm.EntryActions[to]; entryAction != nil {
+	if entryAction := sm.entryActions[to]; entryAction != nil {
 		if err := entryAction(); err != nil {
 			sm.State = oldState
 			return fmt.Errorf("%w: %v", ErrEntryActionFailed, err)
@@ -96,14 +117,14 @@ func (sm *StateMachine) Transition(to State) error {
 // you will define in your implementation. This is called during the transition following the state machine
 // transitioning from the present to the destination state
 func (sm *StateMachine) SetEntryAction(state State, action Action) {
-	sm.EntryActions[state] = action
+	sm.entryActions[state] = action
 }
 
 // Set or replace the exit action for a given state. The exit action is a generic function that
 // you will define in your implementation. This is called during the transition prior to the state machine
 // transitioning from the present to the destination state
 func (sm *StateMachine) SetExitAction(state State, action Action) {
-	sm.ExitActions[state] = action
+	sm.exitActions[state] = action
 }
 
 func (sm *StateMachine) Reset() {
