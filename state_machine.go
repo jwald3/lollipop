@@ -25,8 +25,10 @@ type Guard func() bool
 
 // transitions include both the target state and a guard function to control the transition
 type Transition struct {
-	To    State
-	Guard Guard
+	From   State
+	To     State
+	Guard  Guard
+	Action Action
 }
 
 // StateMachine manages state transitions and their associated actions
@@ -50,18 +52,21 @@ func NewStateMachine(initialState State) *StateMachine {
 
 // add transitions to the state machine's registry. if a state is not present in the map of
 // transitions, we will add it and its "to" state
-func (sm *StateMachine) AddTransition(from, to State, guard Guard) {
+func (sm *StateMachine) AddTransition(from, to State, guard Guard, action Action) {
 	if sm.Transitions[from] == nil {
 		sm.Transitions[from] = []Transition{}
 	}
 	sm.Transitions[from] = append(sm.Transitions[from], Transition{
-		To:    to,
-		Guard: guard,
+		From:   from,
+		To:     to,
+		Guard:  guard,
+		Action: action,
 	})
 }
 
+// add a transition without a guard or action attached to it
 func (sm *StateMachine) AddSimpleTransition(from, to State) {
-	sm.AddTransition(from, to, nil)
+	sm.AddTransition(from, to, nil, nil)
 }
 
 func (sm *StateMachine) CanTransition(to State) bool {
@@ -90,19 +95,53 @@ func (sm *StateMachine) CanTransition(to State) bool {
 // the transition only sets the state machine's current status, so any intention to
 // use a state machine to update an object's status requires the use of entry/exit actions
 func (sm *StateMachine) Transition(to State) error {
-	if !sm.CanTransition(to) {
+	transitions, exists := sm.Transitions[sm.State]
+	if !exists {
 		return fmt.Errorf("%w: from %v to %v", ErrInvalidTransition, sm.State, to)
 	}
 
+	// attempt to find the requested transition between the current and target states
+	var matchedTransition *Transition
+	for _, t := range transitions {
+		if t.To == to {
+			matchedTransition = &t
+			break
+		}
+	}
+
+	// if the transition could not be found, return an error
+	if matchedTransition == nil {
+		return fmt.Errorf("%w: from %v to %v", ErrExitActionFailed, sm.State, to)
+	}
+
+	// check the guard if present and return an error if it cannot be satisfied
+	if matchedTransition.Guard != nil && !matchedTransition.Guard() {
+		return fmt.Errorf("%w: guard condition failed", ErrInvalidTransition)
+	}
+
+	// preserve the current state if you need to roll back later
+	oldState := sm.State
+
+	// check for entry actions, if there is one and it cannot be performed,  return the error
 	if exitAction := sm.exitActions[sm.State]; exitAction != nil {
 		if err := exitAction(); err != nil {
 			return fmt.Errorf("%w: %v", ErrExitActionFailed, err)
 		}
 	}
 
-	oldState := sm.State
+	// attempt to perform the transition action. if the action fails, return the error.
+	// you do not need to roll back because the state has not yet been altered.
+	if matchedTransition.Action != nil {
+		if err := matchedTransition.Action(); err != nil {
+			return fmt.Errorf("transition action failed: %v", err)
+		}
+	}
+
+	// set the current state to the target state
 	sm.State = to
 
+	// check for entry actions, if there is one and it cannot be performed, roll back.
+	// otherwise continue
 	if entryAction := sm.entryActions[to]; entryAction != nil {
 		if err := entryAction(); err != nil {
 			sm.State = oldState
