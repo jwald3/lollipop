@@ -1,5 +1,4 @@
-![lollipop](https://github.com/user-attachments/assets/a1e0201e-5e68-4aa7-97bb-305ce35352f2)
-
+![lollipop](https://github.com/user-attachments/assets/56bb7bf8-1e89-4df7-9b67-41ce8bee5f4d)
 
 # Lollipop
 
