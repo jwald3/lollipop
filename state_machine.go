@@ -111,7 +111,7 @@ func (sm *StateMachine) Transition(to State) error {
 
 	// if the transition could not be found, return an error
 	if matchedTransition == nil {
-		return fmt.Errorf("%w: from %v to %v", ErrExitActionFailed, sm.State, to)
+		return fmt.Errorf("%w: from %v to %v", ErrInvalidTransition, sm.State, to)
 	}
 
 	// check the guard if present and return an error if it cannot be satisfied
